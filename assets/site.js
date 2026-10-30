@@ -218,33 +218,104 @@ if (form) {
   if (p.get('lang') === 'en' && lang !== 'en') { lang = 'en'; applyLang(); }
   sync();
 
-  /* ---- step 2: exact GPS location (required). Either the phone's GPS or a pasted Google Maps link. ---- */
+  /* ---- step 2: exact location of the site on a map (required when there is transport or crane).
+     The client marks the spot on an interactive map (tap / drag the pin), can search a place, use the phone
+     GPS to centre, or paste a Google Maps link. Sent as mapspin (Google Maps URL) + lat/lng. ---- */
   const geoStatus = F('geoStatus');
   const showGeo = (html, bad) => { geoStatus.innerHTML = html; geoStatus.classList.toggle('bad', !!bad); geoStatus.hidden = false; };
   const COORDS_RE = /^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
   const MAPS_RE = /(maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.apple\.com|waze\.com\/ul|waze\.com\/live-map)/i;
-  const pinValue = () => {                     // normalised value for sending, '' if invalid
+  const fmt = n => Number(n).toFixed(6);
+  const gmaps = (la, lo) => `https://maps.google.com/?q=${fmt(la)},${fmt(lo)}`;
+  const coordsFromLink = u => {   // lat,lng inside a Google Maps URL, when present
+    const m = u.match(/[?&]q=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/) || u.match(/@(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/) || u.match(/!3d(-?\d{1,2}\.\d+)!4d(-?\d{1,3}\.\d+)/) || u.match(/[?&]ll=(-?\d{1,2}\.\d+),(-?\d{1,3}\.\d+)/);
+    return m ? [parseFloat(m[1]), parseFloat(m[2])] : null;
+  };
+  const pinValue = () => {                     // normalised value for sending, '' if nothing valid
+    if (F('f_lat').value && F('f_lng').value) return gmaps(F('f_lat').value, F('f_lng').value);
     const raw = F('f_pin').value.trim(); if (!raw) return '';
-    const c = raw.match(COORDS_RE); if (c) return `https://maps.google.com/?q=${c[1]},${c[2]}`;
+    const c = raw.match(COORDS_RE); if (c) return gmaps(c[1], c[2]);
     return MAPS_RE.test(raw) ? raw : '';
   };
-  const PIN_ERR = () => L('Necesitamos la ubicación GPS exacta del sitio: toque «Compartir mi ubicación GPS» o pegue el enlace de Google Maps del lugar.', 'We need the exact GPS location of the site: tap "Share my GPS location" or paste the Google Maps link of the spot.');
+  const PIN_ERR = () => L('Marque en el mapa el punto exacto del sitio (toque el mapa o use «Mi ubicación»), o pegue el enlace de Google Maps.', 'Mark the exact spot on the map (tap the map or use "My location"), or paste the Google Maps link.');
+
+  const PANAMA = [8.43, -80.6];
+  const PROV = { 'Panamá': [8.98, -79.52, 11], 'Panamá Oeste': [8.88, -79.78, 11], 'Colón': [9.36, -79.90, 11], 'Coclé': [8.50, -80.37, 10], 'Herrera': [7.96, -80.42, 11], 'Los Santos': [7.93, -80.42, 10], 'Veraguas': [8.10, -81.06, 10], 'Chiriquí': [8.43, -82.43, 11], 'Bocas del Toro': [9.34, -82.25, 10], 'Darién': [8.05, -77.78, 9], 'Comarca Guna Yala': [9.30, -78.60, 9], 'Comarca Ngäbe-Buglé': [8.45, -81.80, 10], 'Comarca Emberá-Wounaan': [8.10, -77.90, 9], 'Comarca Naso Tjër Di': [9.20, -82.80, 10] };
+  let map = null, marker = null;
+  const PIN_SVG = '<svg viewBox="0 0 34 44" width="34" height="44" xmlns="http://www.w3.org/2000/svg"><path d="M17 1C8.2 1 1 8.1 1 16.9 1 28.3 17 43 17 43s16-14.7 16-26.1C33 8.1 25.8 1 17 1z" fill="#D42A1C" stroke="#fff" stroke-width="2"/><circle cx="17" cy="17" r="6" fill="#fff"/></svg>';
+  const setPin = (la, lo, opts) => {
+    opts = opts || {};
+    F('f_lat').value = fmt(la); F('f_lng').value = fmt(lo); F('f_pin').value = gmaps(la, lo); setErr('f_pin', '');
+    if (map) {
+      if (!marker) {
+        marker = window.L.marker([la, lo], { draggable: true, icon: window.L.divIcon({ className: 'geo-pin', html: PIN_SVG, iconSize: [34, 44], iconAnchor: [17, 43] }), keyboard: false }).addTo(map);
+        marker.on('dragend', () => { const q = marker.getLatLng(); setPin(q.lat, q.lng, { fromDrag: true }); });
+      } else marker.setLatLng([la, lo]);
+      if (opts.zoom) map.setView([la, lo], Math.max(map.getZoom(), opts.zoom));
+    }
+    const acc = opts.acc ? ` · ±${Math.round(opts.acc)} m` : '';
+    showGeo(`✓ ${L('Ubicación marcada', 'Location marked')} (${fmt(la)}, ${fmt(lo)}${acc}) · <a href="${gmaps(la, lo)}" target="_blank" rel="noopener">${L('Ver en Google Maps', 'View in Google Maps')}</a><br><span class="geo-sub">${L('¿No es el punto exacto? Arrastre el pin o toque el lugar correcto.', 'Not the exact spot? Drag the pin or tap the right place.')}</span>`);
+  };
+  const clearPin = () => { F('f_lat').value = ''; F('f_lng').value = ''; if (marker && map) { map.removeLayer(marker); marker = null; } geoStatus.hidden = true; };
+  const initMap = () => {
+    if (map || !window.L || !F('geoMap')) return;
+    try {
+      const LF = window.L;
+      map = LF.map('geoMap', { center: PANAMA, zoom: 7, scrollWheelZoom: false, zoomControl: true, attributionControl: true });
+      const street = LF.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+      const sat = LF.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri, Maxar, Earthstar Geographics' });
+      street.addTo(map);
+      LF.control.layers({ [L('Mapa', 'Map')]: street, [L('Satélite', 'Satellite')]: sat }, null, { position: 'topright', collapsed: false }).addTo(map);
+      map.on('click', e => setPin(e.latlng.lat, e.latlng.lng, { zoom: 16 }));
+      setTimeout(() => map.invalidateSize(), 300);
+      const prov = F('f_prov').value; if (PROV[prov]) map.setView(PROV[prov].slice(0, 2), PROV[prov][2]);
+    } catch (e) { map = null; F('geoMap').hidden = true; F('geoTip').hidden = true; }
+  };
+  initMap();
+  if (!map) { F('geoMap').hidden = true; F('geoTip').hidden = true; }   // Leaflet not loaded: GPS button + link still work
+  F('f_prov').addEventListener('change', () => { const c = PROV[F('f_prov').value]; if (map && c && !marker) map.setView(c.slice(0, 2), c[2]); });
+
+  const geoSearch = async () => {
+    const q = F('geoSearch').value.trim(); if (!q) { F('geoSearch').focus(); return; }
+    const b = F('geoSearchBtn'); b.disabled = true;
+    try {
+      const prov = F('f_prov').value, qq = prov && !new RegExp(prov, 'i').test(q) ? `${q}, ${prov}` : q;
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pa&q=${encodeURIComponent(qq + ', Panamá')}`, { headers: { 'Accept': 'application/json' } });
+      const js = await r.json();
+      if (js && js[0]) {
+        const la = parseFloat(js[0].lat), lo = parseFloat(js[0].lon);
+        if (map) map.setView([la, lo], 15);
+        showGeo(L('Lugar encontrado. Ahora acerque el mapa y toque el punto exacto donde irá el contenedor.', 'Place found. Now zoom in and tap the exact spot where the container will go.'));
+      } else showGeo(L('No encontramos ese lugar. Pruebe con el nombre del pueblo o corregimiento, o use «Mi ubicación».', 'We could not find that place. Try the town or district name, or use "My location".'), true);
+    } catch (e) { showGeo(L('No se pudo buscar en este momento. Toque el mapa para marcar el punto o use «Mi ubicación».', 'Search is unavailable right now. Tap the map to mark the spot or use "My location".'), true); }
+    b.disabled = false;
+  };
+  F('geoSearchBtn').addEventListener('click', geoSearch);
+  F('geoSearch').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); geoSearch(); } });
+
   F('geoBtn').addEventListener('click', () => {
     const b = F('geoBtn');
-    if (!navigator.geolocation) { showGeo(L('Su navegador no permite compartir la ubicación. Pegue abajo el enlace de Google Maps del sitio.', 'Your browser cannot share your location. Paste the Google Maps link of the site below.'), true); return; }
+    if (!navigator.geolocation) { showGeo(L('Su navegador no permite compartir la ubicación. Toque el mapa para marcar el punto.', 'Your browser cannot share your location. Tap the map to mark the spot.'), true); return; }
     b.disabled = true; showGeo(L('Obteniendo su ubicación… si el teléfono pregunta, pulse «Permitir».', 'Getting your location… if your phone asks, tap "Allow".'));
     navigator.geolocation.getCurrentPosition(pos => {
-      const la = pos.coords.latitude.toFixed(6), lo = pos.coords.longitude.toFixed(6), acc = Math.round(pos.coords.accuracy || 0);
-      F('f_pin').value = `https://maps.google.com/?q=${la},${lo}`; b.disabled = false; setErr('f_pin', '');
-      showGeo(`✓ ${L('Ubicación capturada', 'Location captured')} (${la}, ${lo}${acc ? ` · ±${acc} m` : ''}) · <a href="https://maps.google.com/?q=${la},${lo}" target="_blank" rel="noopener">${L('Ver en el mapa', 'View on map')}</a>`);
+      b.disabled = false; setPin(pos.coords.latitude, pos.coords.longitude, { zoom: 17, acc: pos.coords.accuracy });
     }, err => {
       b.disabled = false;
+      if (pinValue()) { showGeo(L('No se pudo obtener su ubicación, pero ya hay un punto marcado. Revise que sea el correcto.', 'Could not get your location, but a spot is already marked. Check that it is the right one.')); return; }
       const denied = err && err.code === 1;
-      showGeo(denied ? L('El permiso de ubicación fue denegado. Active la ubicación de su teléfono y vuelva a intentarlo, o pegue abajo el enlace de Google Maps del sitio.', 'Location permission was denied. Turn on your phone\'s location and try again, or paste the Google Maps link of the site below.')
-        : L('No se pudo obtener la ubicación. Intente de nuevo al aire libre, o pegue abajo el enlace de Google Maps del sitio.', 'Could not get your location. Try again outdoors, or paste the Google Maps link of the site below.'), true);
+      showGeo(denied ? L('El permiso de ubicación fue denegado. Active la ubicación del teléfono y vuelva a intentarlo, o toque el mapa para marcar el punto.', 'Location permission was denied. Turn on your phone\'s location and try again, or tap the map to mark the spot.')
+        : L('No se pudo obtener la ubicación. Intente al aire libre, o toque el mapa para marcar el punto.', 'Could not get your location. Try outdoors, or tap the map to mark the spot.'), true);
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   });
-  F('f_pin').addEventListener('input', () => { if (pinValue()) { setErr('f_pin', ''); showGeo(`✓ ${L('Enlace de ubicación recibido', 'Location link received')}`); } else if (!F('f_pin').value.trim()) geoStatus.hidden = true; });
+  F('f_pin').addEventListener('input', () => {
+    const raw = F('f_pin').value.trim();
+    if (!raw) { clearPin(); return; }
+    const c = raw.match(COORDS_RE), fromLink = c ? [parseFloat(c[1]), parseFloat(c[2])] : coordsFromLink(raw);
+    if (fromLink) { setPin(fromLink[0], fromLink[1], { zoom: 16 }); return; }
+    F('f_lat').value = ''; F('f_lng').value = ''; if (marker && map) { map.removeLayer(marker); marker = null; }
+    if (MAPS_RE.test(raw)) { setErr('f_pin', ''); showGeo(`✓ ${L('Enlace de ubicación recibido', 'Location link received')} · ${L('(no se puede mostrar en el mapa, pero lo usaremos)', '(cannot be shown on the map, but we will use it)')}`); }
+    else geoStatus.hidden = true;
+  });
 
   /* ---- step 3: photos of the site (required, 1–4). Compressed in the browser and sent with the request. ---- */
   const photos = [];                            // { filename, data (base64 jpeg), preview }
@@ -316,7 +387,7 @@ if (form) {
     if (errs.length) { const first = errs[0][0], target = first === 'f_pin' ? F('geoBtn') : (first === 'f_photos' ? F('phBtn') : (first === 'w_tr' || first === 'w_cr' ? F(first).querySelector('input') : F(first))); target.scrollIntoView({ block: 'center', behavior: 'smooth' }); target.focus({ preventScroll: true }); }
     return !errs.length;
   };
-  const reset = () => { form.reset(); form.classList.remove('sent'); F('formOk').hidden = true; F('qSubmit').disabled = false; photos.length = 0; renderPhotos(); geoStatus.hidden = true; sync(); };
+  const reset = () => { form.reset(); form.classList.remove('sent'); F('formOk').hidden = true; F('qSubmit').disabled = false; photos.length = 0; renderPhotos(); clearPin(); F('geoSearch').value = ''; sync(); };
   F('okNew').addEventListener('click', () => { reset(); F('f_need').focus(); });
   form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -328,6 +399,7 @@ if (form) {
       qty: fd.get('qty'), province: fd.get('province'), deladdr: fd.get('deladdr'), mapspin: pinValue(),
       need_transport: need === 'transport' ? 'si' : (fd.get('need_transport') || ''), need_crane: need === 'crane' ? 'si' : (fd.get('need_crane') || ''),
       site_required: needsSite() ? 'si' : 'no',
+      lat: F('f_lat').value || '', lng: F('f_lng').value || '',
       desc: fd.get('desc') || '', name: fd.get('name'), whatsapp: fd.get('whatsapp'), email: fd.get('email'),
       photos_count: String(photos.length), photos: photos.map(p => ({ filename: p.filename, data: p.data })),
       lang, source: 'jpinvestments-smartquote', page: 'v7', ts: new Date().toISOString()
