@@ -252,6 +252,9 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--ink);bac
 .geo-map[hidden]{display:none}
 .geo-tip{margin:8px 0 0;font-size:.82rem;color:#5B6168}
 .geo-sub{font-weight:500;font-size:.84rem;opacity:.9}
+.btn[hidden],.ph-grid[hidden],.geo-map[hidden]{display:none}
+.f.bad .seg span{box-shadow:0 0 0 1.5px var(--red)}
+.geo-ov{position:absolute;inset:0;z-index:1200;border:0;padding:0;background:rgba(22,24,27,.18);cursor:pointer;display:flex;align-items:center;justify-content:center;font:700 .95rem var(--f);color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.7)}
 .geo-pin{background:none;border:0}
 .geo-pin svg{filter:drop-shadow(0 3px 4px rgba(0,0,0,.35))}
 /* Leaflet controls must not inherit the form's input/label styles */

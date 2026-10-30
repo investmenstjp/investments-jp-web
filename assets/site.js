@@ -66,6 +66,7 @@ function applyLang() {
   $$('optgroup[data-label-en]').forEach(g => { if (!g.dataset.labelEs) g.dataset.labelEs = g.label; g.label = lang === 'en' ? g.dataset.labelEn : g.dataset.labelEs; });
   document.documentElement.lang = lang;
   const b = $('#langBtn'); if (b) b.textContent = lang === 'es' ? 'EN' : 'ES';
+  document.dispatchEvent(new Event('langchange'));
 }
 $('#langBtn').addEventListener('click', () => { lang = lang === 'es' ? 'en' : 'es'; store.set('jp-lang', lang); applyLang(); });
 if (lang === 'en') applyLang();
@@ -224,7 +225,7 @@ if (form) {
   const geoStatus = F('geoStatus');
   const showGeo = (html, bad) => { geoStatus.innerHTML = html; geoStatus.classList.toggle('bad', !!bad); geoStatus.hidden = false; };
   const COORDS_RE = /^\s*(-?\d{1,2}(?:\.\d+)?)\s*,\s*(-?\d{1,3}(?:\.\d+)?)\s*$/;
-  const MAPS_RE = /(maps\.app\.goo\.gl|goo\.gl\/maps|google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.apple\.com|waze\.com\/ul|waze\.com\/live-map)/i;
+  const MAPS_RE = /^https?:\/\/(maps\.app\.goo\.gl|goo\.gl\/maps|(www\.)?google\.[a-z.]+\/maps|maps\.google\.[a-z.]+|maps\.apple\.com|(www\.)?waze\.com\/(ul|live-map))[^\s<>"']*$/i;
   const fmt = n => Number(n).toFixed(6);
   const gmaps = (la, lo) => `https://maps.google.com/?q=${fmt(la)},${fmt(lo)}`;
   const coordsFromLink = u => {   // lat,lng inside a Google Maps URL, when present
@@ -261,31 +262,46 @@ if (form) {
     if (map || !window.L || !F('geoMap')) return;
     try {
       const LF = window.L;
-      map = LF.map('geoMap', { center: PANAMA, zoom: 7, scrollWheelZoom: false, zoomControl: true, attributionControl: true });
-      const street = LF.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+      const touch = !!(LF.Browser && LF.Browser.mobile);
+      map = LF.map('geoMap', { center: PANAMA, zoom: 7, scrollWheelZoom: false, dragging: !touch, zoomControl: true, attributionControl: true });
+      const street = LF.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors' });
       const sat = LF.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Esri, Maxar, Earthstar Geographics' });
       street.addTo(map);
       LF.control.layers({ [L('Mapa', 'Map')]: street, [L('Satélite', 'Satellite')]: sat }, null, { position: 'topright', collapsed: false }).addTo(map);
-      map.on('click', e => setPin(e.latlng.lat, e.latlng.lng, { zoom: 16 }));
+      map.on('click', e => {
+        if (map.getZoom() < 14) { map.setView(e.latlng, 15); showGeo(L('Acerque un poco más y toque el punto exacto donde irá el contenedor.', 'Zoom in a little more and tap the exact spot where the container will go.')); return; }
+        setPin(e.latlng.lat, e.latlng.lng, { zoom: 16 });
+      });
+      if (touch) {   // on phones a one-finger drag scrolls the page until the client taps the map once
+        const ov = document.createElement('button'); ov.type = 'button'; ov.className = 'geo-ov'; ov.textContent = L('Toque para activar el mapa', 'Tap to activate the map');
+        F('geoMap').appendChild(ov);
+        ov.addEventListener('click', () => { map.dragging.enable(); ov.remove(); map.invalidateSize(); });
+      }
       setTimeout(() => map.invalidateSize(), 300);
       const prov = F('f_prov').value; if (PROV[prov]) map.setView(PROV[prov].slice(0, 2), PROV[prov][2]);
     } catch (e) { map = null; F('geoMap').hidden = true; F('geoTip').hidden = true; }
   };
   initMap();
-  if (!map) { F('geoMap').hidden = true; F('geoTip').hidden = true; }   // Leaflet not loaded: GPS button + link still work
+  if (!map) {   // Leaflet is loaded async from a CDN: init when it arrives, or hide the map if it never does
+    const lfScript = document.querySelector('script[src*="leaflet"]');
+    const tryInit = () => { if (!map) initMap(); if (map) clearInterval(poll); };
+    if (lfScript) lfScript.addEventListener('load', tryInit);
+    const poll = setInterval(tryInit, 300);
+    setTimeout(() => { clearInterval(poll); if (!map) { F('geoMap').hidden = true; F('geoTip').hidden = true; } }, 12000);
+  }
   F('f_prov').addEventListener('change', () => { const c = PROV[F('f_prov').value]; if (map && c && !marker) map.setView(c.slice(0, 2), c[2]); });
 
   const geoSearch = async () => {
     const q = F('geoSearch').value.trim(); if (!q) { F('geoSearch').focus(); return; }
-    const b = F('geoSearchBtn'); b.disabled = true;
+    const b = F('geoSearchBtn'); if (b.disabled) return; b.disabled = true;
     try {
       const prov = F('f_prov').value, qq = prov && !new RegExp(prov, 'i').test(q) ? `${q}, ${prov}` : q;
       const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=pa&q=${encodeURIComponent(qq + ', Panamá')}`, { headers: { 'Accept': 'application/json' } });
       const js = await r.json();
       if (js && js[0]) {
         const la = parseFloat(js[0].lat), lo = parseFloat(js[0].lon);
-        if (map) map.setView([la, lo], 15);
-        showGeo(L('Lugar encontrado. Ahora acerque el mapa y toque el punto exacto donde irá el contenedor.', 'Place found. Now zoom in and tap the exact spot where the container will go.'));
+        if (map) { map.setView([la, lo], 15); showGeo(L('Lugar encontrado. Ahora acerque el mapa y toque el punto exacto donde irá el contenedor.', 'Place found. Now zoom in and tap the exact spot where the container will go.')); }
+        else setPin(la, lo, {});
       } else showGeo(L('No encontramos ese lugar. Pruebe con el nombre del pueblo o corregimiento, o use «Mi ubicación».', 'We could not find that place. Try the town or district name, or use "My location".'), true);
     } catch (e) { showGeo(L('No se pudo buscar en este momento. Toque el mapa para marcar el punto o use «Mi ubicación».', 'Search is unavailable right now. Tap the map to mark the spot or use "My location".'), true); }
     b.disabled = false;
@@ -298,7 +314,13 @@ if (form) {
     if (!navigator.geolocation) { showGeo(L('Su navegador no permite compartir la ubicación. Toque el mapa para marcar el punto.', 'Your browser cannot share your location. Tap the map to mark the spot.'), true); return; }
     b.disabled = true; showGeo(L('Obteniendo su ubicación… si el teléfono pregunta, pulse «Permitir».', 'Getting your location… if your phone asks, tap "Allow".'));
     navigator.geolocation.getCurrentPosition(pos => {
-      b.disabled = false; setPin(pos.coords.latitude, pos.coords.longitude, { zoom: 17, acc: pos.coords.accuracy });
+      b.disabled = false; const acc = pos.coords.accuracy || 0;
+      if (acc > 300) {   // coarse position (desktop / Wi-Fi / IP): centre the map but do not mark it as the site
+        if (map) map.setView([pos.coords.latitude, pos.coords.longitude], 13);
+        showGeo(L(`Ubicación aproximada (±${acc >= 1000 ? (acc / 1000).toFixed(1) + ' km' : Math.round(acc) + ' m'}). Acerque el mapa y toque el punto exacto, o pegue el enlace de Google Maps.`, `Approximate location (±${acc >= 1000 ? (acc / 1000).toFixed(1) + ' km' : Math.round(acc) + ' m'}). Zoom in and tap the exact spot, or paste the Google Maps link.`), true);
+        return;
+      }
+      setPin(pos.coords.latitude, pos.coords.longitude, { zoom: 17, acc });
     }, err => {
       b.disabled = false;
       if (pinValue()) { showGeo(L('No se pudo obtener su ubicación, pero ya hay un punto marcado. Revise que sea el correcto.', 'Could not get your location, but a spot is already marked. Check that it is the right one.')); return; }
@@ -307,15 +329,22 @@ if (form) {
         : L('No se pudo obtener la ubicación. Intente al aire libre, o toque el mapa para marcar el punto.', 'Could not get your location. Try outdoors, or tap the map to mark the spot.'), true);
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
   });
-  F('f_pin').addEventListener('input', () => {
+  const readPinField = () => {
     const raw = F('f_pin').value.trim();
     if (!raw) { clearPin(); return; }
     const c = raw.match(COORDS_RE), fromLink = c ? [parseFloat(c[1]), parseFloat(c[2])] : coordsFromLink(raw);
-    if (fromLink) { setPin(fromLink[0], fromLink[1], { zoom: 16 }); return; }
+    if (fromLink && Math.abs(fromLink[0]) <= 90 && Math.abs(fromLink[1]) <= 180) {
+      setPin(fromLink[0], fromLink[1], { zoom: 16 });
+      if (fromLink[0] < 7 || fromLink[0] > 10 || fromLink[1] < -83.2 || fromLink[1] > -77) showGeo(`${geoStatus.innerHTML}<br><span class="geo-sub">${L('Ese punto queda fuera de Panamá. ¿Están invertidas latitud y longitud?', 'That point is outside Panamá. Are latitude and longitude swapped?')}</span>`, true);
+      return;
+    }
     F('f_lat').value = ''; F('f_lng').value = ''; if (marker && map) { map.removeLayer(marker); marker = null; }
     if (MAPS_RE.test(raw)) { setErr('f_pin', ''); showGeo(`✓ ${L('Enlace de ubicación recibido', 'Location link received')} · ${L('(no se puede mostrar en el mapa, pero lo usaremos)', '(cannot be shown on the map, but we will use it)')}`); }
     else geoStatus.hidden = true;
-  });
+  };
+  F('f_pin').addEventListener('change', readPinField);
+  F('f_pin').addEventListener('paste', () => setTimeout(readPinField, 0));
+  F('f_pin').addEventListener('input', () => { if (!F('f_pin').value.trim()) clearPin(); });
 
   /* ---- step 3: photos of the site (required, 1–4). Compressed in the browser and sent with the request. ---- */
   const photos = [];                            // { filename, data (base64 jpeg), preview }
@@ -348,18 +377,22 @@ if (form) {
   };
   F('phBtn').addEventListener('click', () => phInput.click());
   phGrid.addEventListener('click', e => { const b = e.target.closest('.ph-del'); if (!b) return; photos.splice(+b.dataset.i, 1); photos.forEach((p, i) => { p.filename = `foto-${i + 1}.jpg`; }); renderPhotos(); });
+  let phBusy = false;
   phInput.addEventListener('change', async () => {
+    if (phBusy) { phInput.value = ''; return; }
     const files = [...phInput.files].filter(f => /^image\//.test(f.type) || /\.(jpe?g|png|heic|heif|webp)$/i.test(f.name));
     phInput.value = '';
     if (!files.length) { setErr('f_photos', L('Seleccione una imagen (foto).', 'Select an image (photo).')); return; }
     const room = MAX_PHOTOS - photos.length;
     if (room <= 0) { setErr('f_photos', L(`Máximo ${MAX_PHOTOS} fotos.`, `Maximum ${MAX_PHOTOS} photos.`)); return; }
-    setErr('f_photos', ''); phCount.textContent = L('Preparando fotos…', 'Preparing photos…');
+    setErr('f_photos', ''); phCount.textContent = L('Preparando fotos…', 'Preparing photos…'); phBusy = true; F('phBtn').disabled = true;
     let failed = 0;
     for (const f of files.slice(0, room)) {
-      try { const data = await compress(f); photos.push({ filename: `foto-${photos.length + 1}.jpg`, data: data.split(',')[1], preview: data }); }
+      if (photos.length >= MAX_PHOTOS) break;
+      try { const data = await compress(f); if (photos.length < MAX_PHOTOS) photos.push({ filename: `foto-${photos.length + 1}.jpg`, data: data.split(',')[1], preview: data }); }
       catch (e) { failed++; }
     }
+    phBusy = false; F('phBtn').disabled = false;
     photos.forEach((p, i) => { p.filename = `foto-${i + 1}.jpg`; });
     renderPhotos();
     if (failed) setErr('f_photos', L('Una de las fotos no se pudo leer. Intente con otra.', 'One of the photos could not be read. Try another one.'));
@@ -387,7 +420,9 @@ if (form) {
     if (errs.length) { const first = errs[0][0], target = first === 'f_pin' ? F('geoBtn') : (first === 'f_photos' ? F('phBtn') : (first === 'w_tr' || first === 'w_cr' ? F(first).querySelector('input') : F(first))); target.scrollIntoView({ block: 'center', behavior: 'smooth' }); target.focus({ preventScroll: true }); }
     return !errs.length;
   };
-  const reset = () => { form.reset(); form.classList.remove('sent'); F('formOk').hidden = true; F('qSubmit').disabled = false; photos.length = 0; renderPhotos(); clearPin(); F('geoSearch').value = ''; sync(); };
+  document.addEventListener('langchange', () => { syncSite(); renderPhotos(); const ov = $('.geo-ov'); if (ov) ov.textContent = L('Toque para activar el mapa', 'Tap to activate the map'); });
+  const reset = () => { form.reset(); form.classList.remove('sent'); F('formOk').hidden = true; F('qSubmit').disabled = false; photos.length = 0; renderPhotos(); clearPin(); F('geoSearch').value = '';
+    const ok = F('okPhotos'); ok.classList.add('js-wa'); ok.href = '#'; ok.querySelector('span').textContent = L('Enviar más fotos por WhatsApp', 'Send more photos on WhatsApp'); sync(); };
   F('okNew').addEventListener('click', () => { reset(); F('f_need').focus(); });
   form.addEventListener('submit', async e => {
     e.preventDefault();
@@ -407,7 +442,11 @@ if (form) {
     const btn = F('qSubmit'); btn.disabled = true;
     const label = btn.querySelector('span'), old = label.textContent; label.textContent = L('Enviando fotos y datos…', 'Sending photos and details…');
     let sent = false;
-    try { const r = await fetch(FORM_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); sent = r.ok; } catch (err) { sent = false; }
+    try {
+      const ac = typeof AbortController === 'function' ? new AbortController() : null, tm = ac && setTimeout(() => ac.abort(), 45000);
+      const r = await fetch(FORM_WEBHOOK, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data), signal: ac ? ac.signal : undefined });
+      if (tm) clearTimeout(tm); sent = r.ok;
+    } catch (err) { sent = false; }
     label.textContent = old;
     track('generate_lead', { service: data.service, container: data.ctype || '-', province: data.province, method: sent ? 'formulario' : 'whatsapp' },
       ['Lead', { content_name: data.service_label, content_category: data.ctype_label || data.service_label }]);
@@ -418,8 +457,10 @@ if (form) {
         `• ${L('Provincia', 'Province')}: ${data.province}`, `• ${L('Ubicación', 'Location')}: ${data.deladdr}`, data.mapspin ? `• Pin: ${data.mapspin}` : '',
         `• ${L('Transporte', 'Transport')}: ${yn(data.need_transport)} · ${L('Grúa', 'Crane')}: ${yn(data.need_crane)}`,
         data.desc ? `• ${L('Observaciones', 'Notes')}: ${data.desc}` : '', `• ${L('Nombre', 'Name')}: ${data.name}`, `• WhatsApp: ${data.whatsapp}`, `• Email: ${data.email}`,
-        L('(Le adjunto las fotos del sitio en este chat.)', '(I am attaching the site photos in this chat.)')].filter(Boolean).join('\n');
-      window.open(waLink(WA_NUMBER, lines), '_blank', 'noopener');
+        photos.length ? L('(Le adjunto las fotos del sitio en este chat.)', '(I am attaching the site photos in this chat.)') : ''].filter(Boolean).join('\n');
+      const wa = waLink(WA_NUMBER, lines), ok = F('okPhotos');   // the button in the success box becomes "send the request on WhatsApp"
+      ok.classList.remove('js-wa'); ok.href = wa; ok.querySelector('span').textContent = L('Enviar la solicitud por WhatsApp', 'Send the request on WhatsApp');
+      window.open(wa, '_blank', 'noopener');
       F('okText').textContent = L('Abrimos WhatsApp con sus datos para que nos envíe la solicitud; adjunte ahí las fotos del sitio. Si no se abrió, escríbanos al +507 6250-4804.', 'We opened WhatsApp with your details so you can send us the request; attach the site photos there. If it did not open, message us at +507 6250-4804.');
     }
     F('okPhotos').dataset.name = data.name;
