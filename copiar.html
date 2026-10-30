@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Copiar cotización · Investments JP</title>
+<style>
+  :root{
+    --ink:#0D0D0F; --red:#D42A1C; --cream:#F5F4F1;
+    --line:#E5E2DC; --muted:#8A8F98; --white:#FFFFFF;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--cream);
+    font-family:Arial,Helvetica,sans-serif;
+    color:var(--ink);
+    -webkit-text-size-adjust:100%;
+  }
+  .wrap{max-width:600px;margin:0 auto;padding:16px}
+  .card{
+    background:var(--white);border:1px solid var(--line);
+    border-radius:10px;overflow:hidden;
+    box-shadow:0 1px 3px rgba(0,0,0,.05);margin-top:24px;
+  }
+  .topbar{height:6px;background:var(--red)}
+  .head{background:var(--ink);padding:20px 24px;display:flex;
+    align-items:center;justify-content:space-between}
+  .logo{font-size:20px;font-weight:bold;color:#fff;letter-spacing:.02em}
+  .logo span{color:var(--red)}
+  .pais{font-family:'Courier New',monospace;font-size:11px;color:#9BA0A8;letter-spacing:.12em}
+  .body{padding:24px}
+  .eyebrow{font-size:12px;font-weight:bold;color:var(--red);
+    text-transform:uppercase;letter-spacing:.14em;margin-bottom:8px}
+  h1{font-size:22px;margin:0 0 4px}
+  .sub{font-size:13px;color:var(--muted);margin:0 0 18px}
+  .quote{
+    font-family:'Courier New',monospace;font-size:14px;line-height:1.6;
+    background:var(--cream);border:1px dashed var(--red);border-radius:8px;
+    padding:16px;white-space:pre-wrap;word-break:break-word;color:var(--ink);
+    max-height:40vh;overflow:auto;
+  }
+  .btn{
+    display:block;width:100%;border:0;cursor:pointer;
+    background:var(--red);color:#fff;font-family:inherit;font-size:18px;
+    font-weight:bold;padding:18px;border-radius:8px;margin-top:16px;
+    -webkit-tap-highlight-color:transparent;transition:background .15s;
+  }
+  .btn:active{background:#b32317}
+  .btn.ok{background:#1f8f3a}
+  .btn-sec{
+    display:block;width:100%;text-align:center;text-decoration:none;
+    background:#fff;color:var(--ink);border:1px solid var(--line);
+    font-size:15px;font-weight:bold;padding:14px;border-radius:8px;margin-top:10px;
+  }
+  .hint{font-size:13px;color:var(--muted);margin-top:14px;text-align:center}
+  .foot{background:var(--ink);padding:16px 24px;font-size:12px;color:#9BA0A8}
+  .empty{padding:28px 24px;text-align:center;color:var(--muted);font-size:15px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="card">
+    <div class="topbar"></div>
+    <div class="head">
+      <div class="logo">INVESTMENTS J<span>P</span></div>
+      <div class="pais">PANAMÁ</div>
+    </div>
+    <div id="content" class="body"></div>
+    <div class="foot">Investments JP · Contenedores, transporte y grúas · investments-jp.com</div>
+  </div>
+</div>
+
+<script>
+(function(){
+  // Lee el texto de la cotización desde la URL (?d= o #d=)
+  function leerDato(){
+    try{
+      var p = new URLSearchParams(window.location.search);
+      var d = p.get('d');
+      if(d) return d;
+      // respaldo: fragmento #d=...
+      var h = window.location.hash || '';
+      var m = h.match(/[#&]d=([^&]*)/);
+      if(m) return decodeURIComponent(m[1].replace(/\+/g,' '));
+    }catch(e){}
+    return '';
+  }
+
+  var texto = leerDato();
+  var cont = document.getElementById('content');
+
+  if(!texto){
+    cont.className = 'empty';
+    cont.innerHTML = 'No se recibió ninguna cotización en este enlace.<br>Abre el enlace desde el correo "Nueva cotización web".';
+    return;
+  }
+
+  cont.innerHTML =
+    '<div class="eyebrow">📋 Cotización lista para copiar</div>' +
+    '<h1>Copiar cotización</h1>' +
+    '<p class="sub">Toca el botón y pega el texto en Claude.</p>' +
+    '<div class="quote" id="quote"></div>' +
+    '<button class="btn" id="copyBtn">📋 Copiar cotización</button>' +
+    '<a class="btn-sec" href="https://claude.ai" target="_blank" rel="noopener">Abrir Claude →</a>' +
+    '<div class="hint">Se copia todo el texto de arriba. Pégalo en tu proyecto junto con el precio y el flete.</div>';
+
+  document.getElementById('quote').textContent = texto;
+
+  var btn = document.getElementById('copyBtn');
+
+  function copiar(){
+    // Método moderno
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(texto);
+    }
+    // Respaldo
+    return new Promise(function(res, rej){
+      try{
+        var ta = document.createElement('textarea');
+        ta.value = texto;
+        ta.style.position='fixed'; ta.style.top='0'; ta.style.left='0';
+        ta.style.opacity='0';
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        ta.setSelectionRange(0, texto.length);
+        var ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        ok ? res() : rej();
+      }catch(e){ rej(e); }
+    });
+  }
+
+  btn.addEventListener('click', function(){
+    copiar().then(function(){
+      btn.textContent = '✓ Copiado';
+      btn.classList.add('ok');
+      setTimeout(function(){
+        btn.textContent = '📋 Copiar cotización';
+        btn.classList.remove('ok');
+      }, 2200);
+    }).catch(function(){
+      btn.textContent = 'Mantén presionado el texto para copiar';
+      setTimeout(function(){ btn.textContent = '📋 Copiar cotización'; }, 2600);
+    });
+  });
+})();
+</script>
+</body>
+</html>

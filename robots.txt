@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://investments-jp.com/sitemap.xml

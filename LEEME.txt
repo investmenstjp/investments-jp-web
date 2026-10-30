@@ -1,0 +1,29 @@
+========================================================
+PROYECTO COMPLETO: investments-jp.com
+Copia descargada el 2026-10-19, con el cambio aplicado.
+========================================================
+
+CAMBIO APLICADO
+La línea de servicios ahora dice en TODAS las páginas (hero y pie):
+   "Contenedores · Módulos · Transporte · Grúas · Entrega en sitio"
+(Inglés: "Containers · Modules · Transport · Cranes · On-site delivery")
+
+QUÉ CONTIENE ESTA CARPETA (sitio completo, listo para publicar)
+- index.html y las páginas: contenedores, modulos,
+  contenedores-refrigerados, transporte-y-gruas, proyectos,
+  empresa, contacto, cotizar, privacidad
+- assets/  -> estilos (site.css) y scripts (site.js)
+- media/   -> todas las imágenes y los 2 videos (reel.mp4, rf-video.mp4)
+- robots.txt, sitemap.xml, 404.html
+
+CÓMO PUBLICAR EL CAMBIO EN NETLIFY (arrastrar y soltar)
+1. Entra a https://app.netlify.com e inicia sesión.
+2. Abre tu sitio "investments-jp".
+3. Ve a la pestaña "Deploys".
+4. Arrastra ESTA carpeta (investments-jp-web) completa a la zona que
+   dice "Drag and drop your site output folder here".
+5. Netlify sube todo y publica. En 1-2 minutos el sitio en vivo
+   mostrará la nueva línea.
+
+NOTA: arrastra la CARPETA completa (no archivos sueltos), para que
+las imágenes, videos y páginas queden todas publicadas.

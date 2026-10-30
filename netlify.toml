@@ -1,0 +1,5 @@
+# Sitio estático de INVESTMENTS JP (investments-jp.com)
+# No hay paso de build: Netlify publica la carpeta tal cual.
+[build]
+  publish = "."
+  command = ""
