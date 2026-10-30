@@ -51,8 +51,8 @@
       <h2 class="h-sm" data-i18n="_" data-en="How to quote">Cómo cotizar</h2>
       <ol class="steps steps-v">
         <li><span class="st-n">1</span><b data-i18n="_" data-en="Choose the container or service.">Seleccione el contenedor o servicio.</b></li>
-        <li><span class="st-n">2</span><b data-i18n="_" data-en="Give us the exact delivery location.">Indique la ubicación exacta de entrega.</b></li>
-        <li><span class="st-n">3</span><b data-i18n="_" data-en="Send photos of the access and the unloading area, when applicable.">Envíe fotografías del acceso y del área donde se realizará la descarga cuando corresponda.</b></li>
+        <li><span class="st-n">2</span><b data-i18n="_" data-en="If you need transport or crane: share the exact GPS location of the site.">Si requiere transporte o grúa: comparta la ubicación GPS exacta del sitio.</b></li>
+        <li><span class="st-n">3</span><b data-i18n="_" data-en="Attach photos of the access and of the area where the container will be placed.">Adjunte fotos del acceso y del área donde se colocará el contenedor.</b></li>
         <li><span class="st-n">4</span><b data-i18n="_" data-en="Investments JP reviews the logistics and prepares your quote.">Investments JP revisa la logística y prepara la cotización.</b></li>
       </ol>
       <p class="q-alt2"><span data-i18n="_" data-en="Prefer to talk directly?">¿Prefiere hablar directo?</span> <a href="/contacto/" data-i18n="_" data-en="See contact details">Vea nuestros datos de contacto</a></p>
@@ -89,32 +89,54 @@
           <label for="f_loc" data-i18n="l_loc" data-en="Delivery location or destination *">Ubicación o destino *</label>
           <input id="f_loc" name="deladdr" type="text" autocomplete="street-address" required placeholder="Ej: Corregimiento, calle, referencia" data-ph-en="E.g.: district, street, landmark">
           <small class="err" data-for="f_loc"></small>
-          <div class="loc-row">
-            <button type="button" class="btn btn-ghost btn-sm" id="geoBtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span data-i18n="b_geo" data-en="Use my current location">Usar mi ubicación actual</span></button>
-            <input id="f_pin" name="mapspin" type="url" inputmode="url" placeholder="Pin de Google Maps (opcional)" data-ph-en="Google Maps pin (optional)" aria-label="Pin de Google Maps">
-          </div>
         </div>
-        <div class="f-row">
-          <div class="f">
-            <span class="lbl" id="lb_tr" data-i18n="l_tr" data-en="Need transport?">¿Requiere transporte?</span>
+        <div class="f-row" id="w_trcr">
+          <div class="f" id="w_tr">
+            <span class="lbl" id="lb_tr" data-i18n="l_tr" data-en="Need transport? *">¿Requiere transporte? *</span>
             <div class="seg" role="radiogroup" aria-labelledby="lb_tr">
               <label><input type="radio" name="need_transport" value="si"><span data-i18n="yes" data-en="Yes">Sí</span></label>
               <label><input type="radio" name="need_transport" value="no"><span>No</span></label>
               <label><input type="radio" name="need_transport" value="no_se"><span data-i18n="nsure" data-en="Not sure">No sé</span></label>
             </div>
+            <small class="err" data-for="w_tr"></small>
           </div>
-          <div class="f">
-            <span class="lbl" id="lb_cr" data-i18n="l_cr" data-en="Need crane unloading?">¿Requiere descarga con grúa?</span>
+          <div class="f" id="w_cr">
+            <span class="lbl" id="lb_cr" data-i18n="l_cr" data-en="Need crane unloading? *">¿Requiere descarga con grúa? *</span>
             <div class="seg" role="radiogroup" aria-labelledby="lb_cr">
-              <label><input type="radio" name="need_crane" value="si"><span data-i18n="yes">Sí</span></label>
+              <label><input type="radio" name="need_crane" value="si"><span data-i18n="yes" data-en="Yes">Sí</span></label>
               <label><input type="radio" name="need_crane" value="no"><span>No</span></label>
-              <label><input type="radio" name="need_crane" value="no_se"><span data-i18n="nsure">No sé</span></label>
+              <label><input type="radio" name="need_crane" value="no_se"><span data-i18n="nsure" data-en="Not sure">No sé</span></label>
             </div>
+            <small class="err" data-for="w_cr"></small>
           </div>
+        </div>
+        <div class="f geo-f" id="w_geo">
+          <span class="lbl" id="lb_geo"><span data-i18n="l_geo" data-en="Exact GPS location of the site">Ubicación GPS exacta del sitio</span> <span class="req-mark" id="geoReq">*</span></span>
+          <p class="f-help" id="geoHelpReq" data-i18n="geo_help" data-en="Required when there is transport or crane: it lets us plan the route, the truck and the crane. Tap the button while you are at the site, or paste the Google Maps link of the exact spot.">Obligatoria cuando hay transporte o grúa: nos permite planificar la ruta, el camión y la grúa. Toque el botón estando en el sitio, o pegue el enlace de Google Maps del lugar exacto.</p>
+          <p class="f-help" id="geoHelpOpt" hidden data-i18n="geo_help_opt" data-en="Optional: you chose no transport and no crane. If you later want delivery, the exact location of the site helps us quote it.">Opcional: indicó que no requiere transporte ni grúa. Si más adelante quiere entrega, la ubicación exacta del sitio nos ayuda a cotizarla.</p>
+          <button type="button" class="btn btn-red btn-lg btn-block" id="geoBtn" aria-describedby="geoStatus"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><span data-i18n="b_geo" data-en="Share my GPS location">Compartir mi ubicación GPS</span></button>
+          <div class="geo-status" id="geoStatus" role="status" aria-live="polite" hidden></div>
+          <div class="geo-alt">
+            <label for="f_pin" data-i18n="l_pin" data-en="Not at the site? Paste the Google Maps link of the exact spot:">¿No está en el sitio? Pegue el enlace de Google Maps del lugar exacto:</label>
+            <input id="f_pin" name="mapspin" type="url" inputmode="url" autocomplete="off" placeholder="https://maps.app.goo.gl/…" data-ph-en="https://maps.app.goo.gl/…">
+          </div>
+          <small class="err" data-for="f_pin"></small>
         </div>
         <div class="f">
           <label for="f_desc" data-i18n="l_desc" data-en="Notes">Observaciones</label>
           <textarea id="f_desc" name="desc" rows="3" placeholder="Uso, fecha deseada, tipo de acceso, si es nuevo o usado…" data-ph-en="Use, desired date, type of access, new or used…"></textarea>
+        </div>
+      </fieldset>
+      <fieldset>
+        <legend id="lg_photos"><span data-i18n="fs3" data-en="Photos of the site">Fotos del sitio</span> <span class="req-mark" id="phReq">*</span></legend>
+        <div class="f" id="w_photos">
+          <p class="f-help" id="phHelpReq" data-i18n="ph_help" data-en="Required when there is transport or crane (1 to 4 photos): the access (street or gate) and the exact area where the container will be placed. With them we quote transport and crane accurately.">Obligatorias cuando hay transporte o grúa (de 1 a 4 fotos): el acceso (calle o portón) y el área exacta donde se colocará el contenedor. Con ellas cotizamos bien el transporte y la grúa.</p>
+          <p class="f-help" id="phHelpOpt" hidden data-i18n="ph_help_opt" data-en="Optional: you chose no transport and no crane. If you have photos of where the container will go, they are welcome (up to 4).">Opcionales: indicó que no requiere transporte ni grúa. Si tiene fotos del lugar donde irá el contenedor, son bienvenidas (hasta 4).</p>
+          <input type="file" id="f_photos" accept="image/*" multiple hidden>
+          <button type="button" class="btn btn-red btn-lg btn-block" id="phBtn"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span data-i18n="b_photos" data-en="Take or upload photos">Tomar o subir fotos</span></button>
+          <div class="ph-grid" id="phGrid" hidden></div>
+          <p class="ph-count" id="phCount" role="status" aria-live="polite"></p>
+          <small class="err" data-for="f_photos"></small>
         </div>
       </fieldset>
       <fieldset>
@@ -137,14 +159,14 @@
           </div>
         </div>
       </fieldset>
-      <p class="photo-note"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span data-i18n="ph_note" data-en="After sending, you can share photos of the access and unloading area on WhatsApp. They help us quote transport and crane work accurately.">Después de enviar podrá mandarnos fotos del acceso y del área de descarga por WhatsApp. Nos ayudan a cotizar bien el transporte y la grúa.</span></p>
+      <p class="photo-note"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><span data-i18n="ph_note" data-en="The GPS location and the photos are only used to prepare your quote. After sending, you can also share a video of the access on WhatsApp.">La ubicación GPS y las fotos se usan únicamente para preparar su cotización. Después de enviar también podrá mandarnos un video del acceso por WhatsApp.</span></p>
       <button type="submit" class="btn btn-red btn-lg btn-block" id="qSubmit"><span data-i18n="b_send" data-en="Send request">Enviar solicitud</span><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
       <p class="form-note"><span data-i18n="f_note" data-en="Reply within 24 hours · Monday to Saturday.">Respuesta en menos de 24 horas · Lunes a sábado.</span> <a data-en='Privacy policy' data-i18n='f_priv' href='/privacidad'>Política de privacidad</a></p>
       <div class="form-ok" id="formOk" hidden tabindex="-1">
         <span class="ok-ic"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span>
         <h3 data-i18n="ok_h" data-en="Request received">Solicitud recibida</h3>
         <p id="okText" data-i18n="ok_p" data-en="We will contact you within 24 hours. Check your email (including spam): your quote will arrive as a reply to the confirmation email.">Le contactaremos en menos de 24 horas. Revise su correo (también la carpeta de spam): su cotización llegará como respuesta al email de confirmación.</p>
-        <a class="btn btn-wa btn-lg js-wa" id="okPhotos" data-wa="photos_after" href="#" target="_blank" rel="noopener"><svg class="ic wa-ic" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3C8.8 3 3 8.7 3 15.8c0 2.5.7 4.9 2 7L3 29l6.4-2c2 1.1 4.3 1.7 6.6 1.7 7.2 0 13-5.7 13-12.8S23.2 3 16 3zm0 23.4c-2.1 0-4.1-.6-5.9-1.7l-.4-.3-3.8 1.2 1.2-3.7-.3-.4a10.4 10.4 0 0 1-1.6-5.6C5.2 10 10 5.3 16 5.3s10.8 4.7 10.8 10.5S22 26.4 16 26.4zm5.9-7.8c-.3-.2-1.9-1-2.2-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.4 1.4.6 1.9.7.8.3 1.6.2 2.2.1.7-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span data-i18n="b_sendph" data-en="Send site photos on WhatsApp">Enviar fotos del sitio por WhatsApp</span></a>
+        <a class="btn btn-wa btn-lg js-wa" id="okPhotos" data-wa="photos_after" href="#" target="_blank" rel="noopener"><svg class="ic wa-ic" viewBox="0 0 32 32" aria-hidden="true"><path fill="currentColor" d="M16 3C8.8 3 3 8.7 3 15.8c0 2.5.7 4.9 2 7L3 29l6.4-2c2 1.1 4.3 1.7 6.6 1.7 7.2 0 13-5.7 13-12.8S23.2 3 16 3zm0 23.4c-2.1 0-4.1-.6-5.9-1.7l-.4-.3-3.8 1.2 1.2-3.7-.3-.4a10.4 10.4 0 0 1-1.6-5.6C5.2 10 10 5.3 16 5.3s10.8 4.7 10.8 10.5S22 26.4 16 26.4zm5.9-7.8c-.3-.2-1.9-1-2.2-1.1-.3-.1-.5-.2-.7.2-.2.3-.8 1-1 1.2-.2.2-.4.2-.7.1-.3-.2-1.4-.5-2.6-1.6-1-.9-1.6-1.9-1.8-2.2-.2-.3 0-.5.1-.7l.5-.6c.2-.2.2-.4.3-.6.1-.2 0-.4 0-.6l-1-2.4c-.3-.6-.5-.5-.7-.5h-.6c-.2 0-.6.1-.9.4-.3.3-1.2 1.1-1.2 2.8s1.2 3.2 1.4 3.5c.2.2 2.4 3.6 5.8 5 .8.4 1.4.6 1.9.7.8.3 1.6.2 2.2.1.7-.1 1.9-.8 2.2-1.5.3-.7.3-1.4.2-1.5-.1-.2-.3-.3-.6-.4z"/></svg><span data-i18n="b_sendph" data-en="Send more photos on WhatsApp">Enviar más fotos por WhatsApp</span></a>
         <button type="button" class="btn btn-ghost" id="okNew" data-i18n="b_new" data-en="New request">Nueva solicitud</button>
       </div>
     </form>
